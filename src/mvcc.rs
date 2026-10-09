@@ -78,7 +78,6 @@ impl Default for SnapshotRegistry {
 }
 
 impl SnapshotRegistry {
-
     pub fn register(&self, start_ts: u64) {
         let mut list = self.snapshots.lock();
         list.push(start_ts);
@@ -301,8 +300,10 @@ impl MvccEngine {
             self.btree.insert(&enc_k, &enc_v)?;
         }
 
-        self.last_commit_ts.fetch_max(record.commit_ts, Ordering::SeqCst);
-        self.visible_ts.fetch_max(record.commit_ts, Ordering::SeqCst);
+        self.last_commit_ts
+            .fetch_max(record.commit_ts, Ordering::SeqCst);
+        self.visible_ts
+            .fetch_max(record.commit_ts, Ordering::SeqCst);
         Ok(())
     }
 

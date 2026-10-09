@@ -347,7 +347,10 @@ impl BTree {
         total_free_space: &mut usize,
     ) -> Result<()> {
         if !visited.insert(page_id) {
-            return Err(Error::Corruption(format!("Cycle detected at page {}", page_id)));
+            return Err(Error::Corruption(format!(
+                "Cycle detected at page {}",
+                page_id
+            )));
         }
 
         let guard = self.bufpool.fetch_page(page_id)?;
@@ -502,8 +505,7 @@ impl BTree {
                     (child, slot)
                 };
 
-                if let Some((sep_key, right_child)) = self.insert_into_node(next_child, key, val)?
-                {
+                if let Some((sep_key, right_child)) = self.insert_into_node(next_child, key, val)? {
                     self.insert_into_internal(page_id, sep_slot, &sep_key, right_child)
                 } else {
                     Ok(None)

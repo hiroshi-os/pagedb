@@ -47,61 +47,61 @@ impl Checkpointer {
                 return Ok(0);
             }
 
-        let mut file = OpenOptions::new().read(true).open(&self.dwb_path)?;
-        let mut buf = Vec::new();
-        file.read_to_end(&mut buf)?;
+            let mut file = OpenOptions::new().read(true).open(&self.dwb_path)?;
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf)?;
 
-        if buf.len() < 12 {
-            // Incomplete header: DWB itself was torn before full write
-            let _ = fs::remove_file(&self.dwb_path);
-            return Ok(0);
-        }
-
-        let magic = u32::from_le_bytes(buf[0..4].try_into().unwrap_or([0; 4]));
-        if magic != DWB_MAGIC {
-            let _ = fs::remove_file(&self.dwb_path);
-            return Ok(0);
-        }
-
-        let num_pages = u32::from_le_bytes(buf[4..8].try_into().unwrap_or([0; 4])) as usize;
-        let expected_crc = u32::from_le_bytes(buf[8..12].try_into().unwrap_or([0; 4]));
-
-        let payload_len = num_pages * (4 + PAGE_SIZE);
-        if buf.len() < 12 + payload_len {
-            // Incomplete payload
-            let _ = fs::remove_file(&self.dwb_path);
-            return Ok(0);
-        }
-
-        let payload = &buf[12..12 + payload_len];
-        let actual_crc = crc32c::crc32c(payload);
-        if expected_crc != actual_crc {
-            // CRC mismatch in DWB itself: torn during DWB write, ignore DWB
-            let _ = fs::remove_file(&self.dwb_path);
-            return Ok(0);
-        }
-
-        // DWB is valid and complete! Repair data file
-        let mut offset = 0;
-        let mut repaired = 0;
-        for _ in 0..num_pages {
-            let page_id =
-                u32::from_le_bytes(payload[offset..offset + 4].try_into().unwrap_or([0; 4]));
-            offset += 4;
-            let mut page_data = [0u8; PAGE_SIZE];
-            page_data.copy_from_slice(&payload[offset..offset + PAGE_SIZE]);
-            offset += PAGE_SIZE;
-
-            let mut page = Page::from_bytes(page_data);
-            if page.verify_crc().is_ok() {
-                pager.write_page(page_id, &mut page)?;
-                repaired += 1;
+            if buf.len() < 12 {
+                // Incomplete header: DWB itself was torn before full write
+                let _ = fs::remove_file(&self.dwb_path);
+                return Ok(0);
             }
-        }
 
-        pager.sync_all()?;
-        let _ = fs::remove_file(&self.dwb_path);
-        Ok(repaired)
+            let magic = u32::from_le_bytes(buf[0..4].try_into().unwrap_or([0; 4]));
+            if magic != DWB_MAGIC {
+                let _ = fs::remove_file(&self.dwb_path);
+                return Ok(0);
+            }
+
+            let num_pages = u32::from_le_bytes(buf[4..8].try_into().unwrap_or([0; 4])) as usize;
+            let expected_crc = u32::from_le_bytes(buf[8..12].try_into().unwrap_or([0; 4]));
+
+            let payload_len = num_pages * (4 + PAGE_SIZE);
+            if buf.len() < 12 + payload_len {
+                // Incomplete payload
+                let _ = fs::remove_file(&self.dwb_path);
+                return Ok(0);
+            }
+
+            let payload = &buf[12..12 + payload_len];
+            let actual_crc = crc32c::crc32c(payload);
+            if expected_crc != actual_crc {
+                // CRC mismatch in DWB itself: torn during DWB write, ignore DWB
+                let _ = fs::remove_file(&self.dwb_path);
+                return Ok(0);
+            }
+
+            // DWB is valid and complete! Repair data file
+            let mut offset = 0;
+            let mut repaired = 0;
+            for _ in 0..num_pages {
+                let page_id =
+                    u32::from_le_bytes(payload[offset..offset + 4].try_into().unwrap_or([0; 4]));
+                offset += 4;
+                let mut page_data = [0u8; PAGE_SIZE];
+                page_data.copy_from_slice(&payload[offset..offset + PAGE_SIZE]);
+                offset += PAGE_SIZE;
+
+                let mut page = Page::from_bytes(page_data);
+                if page.verify_crc().is_ok() {
+                    pager.write_page(page_id, &mut page)?;
+                    repaired += 1;
+                }
+            }
+
+            pager.sync_all()?;
+            let _ = fs::remove_file(&self.dwb_path);
+            Ok(repaired)
         }
     }
 

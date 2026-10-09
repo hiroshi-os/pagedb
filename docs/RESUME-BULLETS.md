@@ -1,5 +1,6 @@
 # Resume Bullets (Draft)
 
-All resume bullets must be prefixed with "DRAFT:" and cite the bench/RESULTS.md row.
-
-- DRAFT: Designed and built a transactional B+tree storage engine with MVCC snapshot isolation (first-committer-wins), WAL redo recovery, and double-write buffer protecting against torn pages. (Pending benchmarks in bench/RESULTS.md)
+- DRAFT: Architected and built `pagedb`, an embedded transactional B+tree storage engine in 100% safe Rust featuring a slotted 8 KiB page layout, CLOCK-eviction buffer pool with no-steal caching, and CRC32C per-page integrity verification. (Cites bench/RESULTS.md: Adversarial Crash & Recovery Test Suite)
+- DRAFT: Implemented Multi-Version Concurrency Control (MVCC) with Snapshot Isolation and first-committer-wins conflict detection, achieving 339,933 read ops/s at 8 threads and 0 lost updates across 8,000 concurrent increments. (Cites bench/RESULTS.md: YCSB-style Workloads, Transaction Isolation Suite)
+- DRAFT: Engineered redo-only crash recovery with segmented Write-Ahead Logging (WAL) and a Double-Write Buffer (DWB), surviving 300 automated SIGKILL runs and 20 torn-write injections with 0 lost and 0 partial transactions verified. (Cites bench/RESULTS.md: Adversarial Crash & Recovery Test Suite)
+- DRAFT: Designed adversarial test harnesses and negative-control test suites (`unsafe-no-conflict-check` and `unsafe-skip-dwb`) to validate that crash recovery and write conflict detectors reliably catch data anomalies. (Cites bench/RESULTS.md: Negative control corruptions detected = 10)

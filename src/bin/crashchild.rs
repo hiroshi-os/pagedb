@@ -1,6 +1,6 @@
+use pagedb::db::{Db, Options};
 use std::io::Write;
 use std::time::Duration;
-use pagedb::db::{Db, Options};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

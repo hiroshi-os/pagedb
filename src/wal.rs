@@ -112,8 +112,8 @@ impl WalCommitRecord {
             if offset + 2 > body.len() {
                 return Err(Error::Corruption("Truncated key len".into()));
             }
-            let klen = u16::from_le_bytes(body[offset..offset + 2].try_into().unwrap_or([0; 2]))
-                as usize;
+            let klen =
+                u16::from_le_bytes(body[offset..offset + 2].try_into().unwrap_or([0; 2])) as usize;
             offset += 2;
 
             if offset + klen > body.len() {
@@ -125,8 +125,8 @@ impl WalCommitRecord {
             if offset + 2 > body.len() {
                 return Err(Error::Corruption("Truncated val len".into()));
             }
-            let vlen = u16::from_le_bytes(body[offset..offset + 2].try_into().unwrap_or([0; 2]))
-                as usize;
+            let vlen =
+                u16::from_le_bytes(body[offset..offset + 2].try_into().unwrap_or([0; 2])) as usize;
             offset += 2;
 
             if offset + vlen > body.len() {
@@ -180,26 +180,22 @@ impl WalManager {
         }
         segments.sort_unstable();
 
-        let (current_segment_idx, current_file, current_file_size) = if let Some(&last_idx) =
-            segments.last()
-        {
-            let seg_path = dir.join(format!("{:016}.wal", last_idx));
-            let file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(&seg_path)?;
-            let size = file.metadata()?.len() as usize;
-            (last_idx, file, size)
-        } else {
-            let seg_path = dir.join(format!("{:016}.wal", 0));
-            let file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(&seg_path)?;
-            (0, file, 0)
-        };
+        let (current_segment_idx, current_file, current_file_size) =
+            if let Some(&last_idx) = segments.last() {
+                let seg_path = dir.join(format!("{:016}.wal", last_idx));
+                let file = OpenOptions::new().read(true).write(true).open(&seg_path)?;
+                let size = file.metadata()?.len() as usize;
+                (last_idx, file, size)
+            } else {
+                let seg_path = dir.join(format!("{:016}.wal", 0));
+                let file = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .truncate(false)
+                    .open(&seg_path)?;
+                (0, file, 0)
+            };
 
         Ok(Self {
             dir,
@@ -291,8 +287,7 @@ impl WalManager {
                     Ok((rec, rec_len)) => {
                         if rec.lsn >= start_lsn {
                             max_lsn = Some(max_lsn.unwrap_or(0).max(rec.lsn));
-                            max_commit_ts =
-                                Some(max_commit_ts.unwrap_or(0).max(rec.commit_ts));
+                            max_commit_ts = Some(max_commit_ts.unwrap_or(0).max(rec.commit_ts));
                             valid_records.push(rec);
                         }
                         offset += rec_len;

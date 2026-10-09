@@ -135,9 +135,8 @@ fn test_bank_transfers_invariant() {
                 // Loop retry on Conflict
                 loop {
                     let mut tx = db_cl.begin();
-                    let from_bal = u64::from_le_bytes(
-                        tx.get(&from_key).unwrap().unwrap().try_into().unwrap(),
-                    );
+                    let from_bal =
+                        u64::from_le_bytes(tx.get(&from_key).unwrap().unwrap().try_into().unwrap());
                     let to_bal =
                         u64::from_le_bytes(tx.get(&to_key).unwrap().unwrap().try_into().unwrap());
 
@@ -211,8 +210,7 @@ fn test_lost_update_8k() {
     }
 
     let tx = db.begin();
-    let final_val =
-        u64::from_le_bytes(tx.get(b"counter").unwrap().unwrap().try_into().unwrap());
+    let final_val = u64::from_le_bytes(tx.get(b"counter").unwrap().unwrap().try_into().unwrap());
 
     #[cfg(not(feature = "unsafe-no-conflict-check"))]
     assert_eq!(final_val, 8000);

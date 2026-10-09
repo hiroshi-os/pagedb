@@ -41,7 +41,7 @@ fn simulate_tear(db_dir: &Path, rng: &mut u64) {
         // Tear data file: overwrite a random 512 B sector of a page present in DWB
         let dwb_path = db_dir.join("pagedb.dwb");
         let data_path = db_dir.join("pagedb.data");
-        
+
         // If DWB doesn't exist yet, synthesize a valid DWB for a page so we can test torn page recovery
         if !dwb_path.exists() {
             if let Ok(mut data_file) = OpenOptions::new().read(true).open(&data_path) {
@@ -66,13 +66,17 @@ fn simulate_tear(db_dir: &Path, rng: &mut u64) {
         if dwb_path.exists() {
             if let Ok(dwb_bytes) = fs::read(&dwb_path) {
                 if dwb_bytes.len() >= 16 {
-                    let num_pages = u32::from_le_bytes(dwb_bytes[4..8].try_into().unwrap_or([0; 4])) as usize;
+                    let num_pages =
+                        u32::from_le_bytes(dwb_bytes[4..8].try_into().unwrap_or([0; 4])) as usize;
                     if num_pages > 0 {
                         let page_idx = (next_rand() % (num_pages as u64)) as usize;
                         let offset = 12 + page_idx * (4 + PAGE_SIZE);
                         if offset + 4 <= dwb_bytes.len() {
-                            let victim_page = u32::from_le_bytes(dwb_bytes[offset..offset + 4].try_into().unwrap_or([0; 4]));
-                            let sector_offset = (victim_page as u64 * (PAGE_SIZE as u64)) + ((next_rand() % 16) * 512);
+                            let victim_page = u32::from_le_bytes(
+                                dwb_bytes[offset..offset + 4].try_into().unwrap_or([0; 4]),
+                            );
+                            let sector_offset = (victim_page as u64 * (PAGE_SIZE as u64))
+                                + ((next_rand() % 16) * 512);
                             if let Ok(mut f) = OpenOptions::new().write(true).open(&data_path) {
                                 let _ = f.seek(SeekFrom::Start(sector_offset));
                                 let garbage = [0xEEu8; 512];
@@ -269,7 +273,10 @@ fn main() {
             }
             Err(e) => {
                 if tear && cfg!(feature = "unsafe-skip-dwb") {
-                    println!("Expected corruption in unsafe-skip-dwb negative control: {}", e);
+                    println!(
+                        "Expected corruption in unsafe-skip-dwb negative control: {}",
+                        e
+                    );
                     detected_corruptions += 1;
                 } else {
                     eprintln!("Crash test FAILURE at run {} (seed {}): {}", r, seed, e);

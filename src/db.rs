@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::checkpoint::Checkpointer;
 use crate::mvcc::MvccEngine;
-use crate::page::{META_PAGE_ID, Result};
+use crate::page::{Result, META_PAGE_ID};
 use crate::pager::Pager;
 use crate::recovery::Recovery;
 
@@ -177,7 +177,10 @@ impl<'a> Txn<'a> {
         }
 
         let sync_always = matches!(self.db.sync_mode, SyncMode::Always);
-        let commit_ts = self.db.mvcc.commit(self.start_ts, &self.writes, sync_always)?;
+        let commit_ts = self
+            .db
+            .mvcc
+            .commit(self.start_ts, &self.writes, sync_always)?;
         self.committed = true;
 
         // Auto-checkpoint if dirty frames exceed 70% threshold
