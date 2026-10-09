@@ -338,11 +338,7 @@ impl<'a> SlottedNode<'a> {
     pub fn available_free_space(&self) -> usize {
         let slots_end = SLOTTED_HEADER_SIZE + (self.num_slots() as usize) * SLOT_SIZE;
         let heap_start = self.free_space_offset() as usize;
-        if heap_start >= slots_end {
-            heap_start - slots_end
-        } else {
-            0
-        }
+        heap_start.saturating_sub(slots_end)
     }
 
     pub fn get_slot(&self, index: u16) -> Result<(u16, u16)> {

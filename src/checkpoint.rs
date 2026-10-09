@@ -1,4 +1,6 @@
+#[allow(unused_imports)]
 use std::fs::{self, OpenOptions};
+#[allow(unused_imports)]
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -33,16 +35,17 @@ impl Checkpointer {
     /// On DB startup, recover from torn data writes using DWB if valid and complete.
     /// If DWB is valid, copy its pages over the data file before opening the tree.
     /// If DWB itself is torn/corrupted/incomplete, data file was not yet touched, so discard DWB.
-    pub fn recover_dwb_if_needed(&self, pager: &mut Pager) -> Result<usize> {
+    pub fn recover_dwb_if_needed(&self, #[allow(unused)] pager: &mut Pager) -> Result<usize> {
         #[cfg(feature = "unsafe-skip-dwb")]
         {
             // Negative control: skip DWB recovery to prove tear mode catches corruption
-            return Ok(0);
+            Ok(0)
         }
-
-        if !self.dwb_path.exists() {
-            return Ok(0);
-        }
+        #[cfg(not(feature = "unsafe-skip-dwb"))]
+        {
+            if !self.dwb_path.exists() {
+                return Ok(0);
+            }
 
         let mut file = OpenOptions::new().read(true).open(&self.dwb_path)?;
         let mut buf = Vec::new();
@@ -99,6 +102,7 @@ impl Checkpointer {
         pager.sync_all()?;
         let _ = fs::remove_file(&self.dwb_path);
         Ok(repaired)
+        }
     }
 
     /// Perform a full checkpoint
@@ -113,13 +117,24 @@ impl Checkpointer {
         let last_commit_ts = mvcc.last_commit_ts();
         let last_lsn = mvcc.wal.lock().next_lsn();
 
-        // 1. Flush dirty pages from buffer pool
-        let dirty_pages = bufpool.flush_all_dirty()?;
+        // 1. Collect dirty pages from buffer pool
+        let mut dirty_pages = bufpool.collect_dirty_pages();
         if dirty_pages.is_empty() {
             return Ok(());
         }
 
-        // 2. Write dirty pages to DWB
+        // 2. Prepare MetaPage and include in DWB
+        let mut meta_page = Page::new();
+        let meta = MetaPage {
+            root_page_id: mvcc.btree.root_page_id(),
+            next_page_id: mvcc.btree.next_page_id(),
+            last_checkpoint_lsn: last_lsn,
+            last_checkpoint_commit_ts: last_commit_ts,
+        };
+        meta.write(&mut meta_page, last_lsn);
+        dirty_pages.push((meta_page_id, meta_page));
+
+        // 3. Write all pages to DWB with header and checksum, then fsync
         let mut dwb_payload = Vec::with_capacity(dirty_pages.len() * (4 + PAGE_SIZE));
         for (page_id, page) in &dirty_pages {
             dwb_payload.extend_from_slice(&page_id.to_le_bytes());
@@ -145,7 +160,7 @@ impl Checkpointer {
             dwb_file.sync_all()?;
         }
 
-        // 3. Write pages to data file in place & fsync data file
+        // 4. Write pages to data file in place & fsync data file
         {
             let mut inner = bufpool.inner.lock();
             for (page_id, mut page) in dirty_pages {
@@ -153,31 +168,10 @@ impl Checkpointer {
             }
             inner.pager.sync_all()?;
         }
-
-        // 4. Update MetaPage
-        {
-            let mut meta_guard = bufpool.fetch_page_mut(meta_page_id)?;
-            meta_guard.with_page_mut(|p| {
-                let mut meta = MetaPage::read(p).unwrap_or(MetaPage {
-                    root_page_id: mvcc.btree.root_page_id(),
-                    next_page_id: mvcc.btree.next_page_id(),
-                    last_checkpoint_lsn: 0,
-                    last_checkpoint_commit_ts: 0,
-                });
-                meta.root_page_id = mvcc.btree.root_page_id();
-                meta.next_page_id = mvcc.btree.next_page_id();
-                meta.last_checkpoint_lsn = last_lsn;
-                meta.last_checkpoint_commit_ts = last_commit_ts;
-                meta.write(p, last_lsn);
-            });
-        }
-        bufpool.flush_all_dirty()?;
+        bufpool.mark_all_clean();
 
         // 5. Delete old WAL segments before checkpoint
         let _ = mvcc.wal.lock().delete_segments_before(0);
-
-        // 6. Clean up DWB
-        let _ = fs::remove_file(&self.dwb_path);
 
         Ok(())
     }

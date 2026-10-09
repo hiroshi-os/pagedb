@@ -69,6 +69,15 @@ impl SnapshotRegistry {
             snapshots: Mutex::new(Vec::new()),
         }
     }
+}
+
+impl Default for SnapshotRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SnapshotRegistry {
 
     pub fn register(&self, start_ts: u64) {
         let mut list = self.snapshots.lock();
@@ -330,7 +339,7 @@ impl MvccEngine {
                 // Keep the single newest version ≤ min_active
                 kept_snapshot_version = true;
                 // If this newest version is a tombstone and no snapshot needs it, drop it
-                if decode_mvcc_val(&enc_v)? == None {
+                if decode_mvcc_val(&enc_v)?.is_none() {
                     keys_to_delete.push(enc_k);
                 }
             } else {

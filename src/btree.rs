@@ -159,13 +159,13 @@ impl BTree {
     }
 
     /// Range scan through leaf sibling chain
-    pub fn scan<R>(&self, range: R) -> Result<Vec<(Vec<u8>, Vec<u8>)>>
+    pub fn scan<'b, R>(&self, range: R) -> Result<Vec<(Vec<u8>, Vec<u8>)>>
     where
-        R: std::ops::RangeBounds<[u8]>,
+        R: std::ops::RangeBounds<&'b [u8]>,
     {
-        let start_key: Option<&[u8]> = match range.start_bound() {
-            std::ops::Bound::Included(b) => Some(b),
-            std::ops::Bound::Excluded(b) => Some(b),
+        let start_key: Option<&'b [u8]> = match range.start_bound() {
+            std::ops::Bound::Included(&b) => Some(b),
+            std::ops::Bound::Excluded(&b) => Some(b),
             std::ops::Bound::Unbounded => None,
         };
 
@@ -223,11 +223,11 @@ impl BTree {
 
             for i in 0..count {
                 let (k, v) = node.get_leaf_cell(i)?;
-                if !range.contains(k) {
+                if !range.contains(&k) {
                     // Check if we exceeded the upper bound
                     match range.end_bound() {
-                        std::ops::Bound::Included(upper) if k > upper => return Ok(results),
-                        std::ops::Bound::Excluded(upper) if k >= upper => return Ok(results),
+                        std::ops::Bound::Included(&upper) if k > upper => return Ok(results),
+                        std::ops::Bound::Excluded(&upper) if k >= upper => return Ok(results),
                         _ => {}
                     }
                 } else {
@@ -331,6 +331,7 @@ impl BTree {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn validate_subtree(
         &self,
         page_id: PageId,

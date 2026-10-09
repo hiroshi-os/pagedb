@@ -27,6 +27,12 @@ impl Frame {
     }
 }
 
+impl Default for Frame {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct BufPoolInner {
     pub pager: Pager,
     pub frames: Vec<Arc<Frame>>,
@@ -177,7 +183,30 @@ impl BufPool {
         Err(Error::BufferPoolFull)
     }
 
-    /// Flush all dirty pages to disk
+    /// Collect dirty pages without writing directly to disk
+    pub fn collect_dirty_pages(&self) -> Vec<(PageId, Page)> {
+        let inner = self.inner.lock();
+        let mut dirty_pages = Vec::new();
+
+        for frame in &inner.frames {
+            if frame.is_dirty.load(Ordering::Acquire) {
+                let page_clone = frame.data.lock().clone();
+                dirty_pages.push((frame.page_id.load(Ordering::Acquire), page_clone));
+            }
+        }
+        dirty_pages
+    }
+
+    pub fn mark_all_clean(&self) {
+        let inner = self.inner.lock();
+        for frame in &inner.frames {
+            if frame.is_dirty.load(Ordering::Acquire) {
+                frame.is_dirty.store(false, Ordering::Release);
+            }
+        }
+    }
+
+    /// Flush all dirty pages directly to disk (used during clean shutdown)
     pub fn flush_all_dirty(&self) -> Result<Vec<(PageId, Page)>> {
         let mut inner = self.inner.lock();
         let mut dirty_pages = Vec::new();
