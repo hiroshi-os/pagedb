@@ -1,0 +1,36 @@
+[package]
+name = "pagedb"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crc32c = "0.6"
+parking_lot = "0.12"
+thiserror = "2.0"
+tempfile = "3.17"
+hdrhistogram = "7.5"
+
+[dev-dependencies]
+proptest = "1.6"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[features]
+default = []
+unsafe-no-conflict-check = []
+unsafe-skip-dwb = []
+
+[[bin]]
+name = "pagedb-cli"
+path = "src/bin/pagedb-cli.rs"
+
+[[bin]]
+name = "crashchild"
+path = "src/bin/crashchild.rs"
+
+[[bin]]
+name = "crashtest"
+path = "src/bin/crashtest.rs"
+
+[[bin]]
+name = "pagedb-bench"
+path = "src/bin/pagedb-bench.rs"
